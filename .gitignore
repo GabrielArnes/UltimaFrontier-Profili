@@ -1,0 +1,4 @@
+.env
+__pycache__/
+*.pyc
+pg_profiles.json
