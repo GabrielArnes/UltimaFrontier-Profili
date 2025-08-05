@@ -76,8 +76,6 @@ class PGCommands(app_commands.Group):
                 embed = discord.Embed(title=nome)
                 if immagine:
                     embed.set_image(url=immagine)
-
-                embed.set_footer(text=f"Creato da <@{user_id}>")
                 embeds.append(embed)
 
         if not embeds:

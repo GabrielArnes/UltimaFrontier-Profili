@@ -1,14 +1,7 @@
 import discord
-from discord import app_commands
-import random
-import json
 import os
 from dotenv import load_dotenv
-import discord
-from discord import app_commands,Embed, app_commands, Interaction
-import os
-import json
-from discord.ui import View, Select, Button
+from discord import app_commands, app_commands
 import misc_commands
 import pg_commands
 
