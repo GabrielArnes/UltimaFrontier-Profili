@@ -1,6 +1,7 @@
 import random
 import itertools
 from discord import app_commands, Interaction, Embed
+import discord
 
 # Funzione helper: logica del comando bersaglio
 async def bersaglio_logic(interaction: Interaction, numero: int):
@@ -18,6 +19,34 @@ async def bersaglio_logic(interaction: Interaction, numero: int):
     valid_members = [
         m for m in voice_channel.members
         if m != member and not m.display_name.lower().startswith("zz") and not m.bot
+    ]
+
+    if not valid_members:
+        await interaction.response.send_message("Non c'è nessuno da pingare (o tutti hanno 'zz' nel nome).", ephemeral=True)
+        return
+
+    numero = max(1, min(numero, len(valid_members)))
+
+    chosen = random.sample(valid_members, numero)
+    mentions = "🎯"+'\n🎯'.join(m.mention for m in chosen)
+
+    await interaction.response.send_message(f"{mentions}", ephemeral=False)
+
+async def bersagliox_logic(interaction: Interaction, numero: int, da_escludere: discord.Member):
+    if not interaction.guild:
+        await interaction.response.send_message("Questo comando funziona solo nei server.", ephemeral=True)
+        return
+
+    member = interaction.guild.get_member(interaction.user.id)
+    if not member or not member.voice or not member.voice.channel:
+        await interaction.response.send_message("Non sei in una chat vocale!", ephemeral=True)
+        return
+
+    voice_channel = member.voice.channel
+
+    valid_members = [
+        m for m in voice_channel.members
+        if m != member and m != da_escludere and not m.display_name.lower().startswith("zz") and not m.bot
     ]
 
     if not valid_members:
@@ -51,6 +80,26 @@ def setup_commands(client):
     @app_commands.describe(numero="Quante persone vuoi pingare?")
     async def rt(interaction: Interaction, numero: int = 1):
         await bersaglio_logic(interaction, numero)
+
+# Bersaglio con Esclusione
+
+    @client.tree.command(name="bersagliox", description="Ping casuale nella voice chat, escludendo anche un utente taggato")
+    @app_commands.describe(da_escludere="Chi vuoi escludere oltre te stesso")
+    @app_commands.describe(numero="(Opzionale) Quante persone vuoi pingare?")
+    async def bersagliox(interaction: Interaction, da_escludere: discord.Member, numero: int = 1):
+        await bersagliox_logic(interaction, numero, da_escludere)
+    
+    @client.tree.command(name="brx", description="Alias per bersagliox")
+    @app_commands.describe(da_escludere="Chi vuoi escludere oltre te stesso")
+    @app_commands.describe(numero="(Opzionale) Quante persone vuoi pingare?")
+    async def brx(interaction: Interaction, da_escludere: discord.Member, numero: int = 1):
+        await bersagliox_logic(interaction, numero, da_escludere)
+    
+    @client.tree.command(name="rtx", description="Alias per bersagliox")
+    @app_commands.describe(da_escludere="Chi vuoi escludere oltre te stesso")
+    @app_commands.describe(numero="(Opzionale) Quante persone vuoi pingare?")
+    async def rtx(interaction: Interaction, da_escludere: discord.Member, numero: int = 1):
+        await bersagliox_logic(interaction, numero, da_escludere)
 
 # ALCHIMIA
     @client.tree.command(name="alchimia", description="Tira da 2 a 4 d20 e mostra tutti gli effetti unici delle coppie.")
@@ -230,3 +279,31 @@ def setup_commands(client):
     async def opp(interaction: Interaction):
         embed = crea_embed_opportunita_compatta()
         await interaction.response.send_message(embed=embed, ephemeral=False)
+
+# INFO SERVER
+
+    def crea_embed_info():
+        embed = Embed(
+            title="📚 Link utili del server",
+            description=(
+                "[📖 Regolamento](https://docs.google.com/document/d/1TiqMb0bXczUmhdvSPWtp6MCw_U0ZDJ3z_EkFzEcYsIw/edit?tab=t.7es1uo54qojl#heading=h.9yali37idpb8)\n"
+                "[🗺️ Ambientazione (Legendkeeper)](https://www.legendkeeper.com/app/cmbqao6g13mpw0zl9g53ghyet/b44zw30f/)\n"
+                "[🎲 Press Start!](https://docs.google.com/document/d/1TiqMb0bXczUmhdvSPWtp6MCw_U0ZDJ3z_EkFzEcYsIw/edit?tab=t.y1x8fkqo1yqd#heading=h.noi3t77uckpr)\n"
+                "[🧙 Formato Scheda](https://docs.google.com/spreadsheets/d/16UMPL6OBRfNQnZKIBfQQ1feLZ_sJtIWtqvjyatbE3xU/edit?gid=0#gid=0)\n"
+                "[💬 Contatta lo staff!](https://discord.com/channels/1374015176554057728/1379788714812768266)\n"
+            ),
+            color=0x3498db
+        )
+        return embed
+    
+    @client.tree.command(name="info", description="Info del server")
+    async def info(interaction: Interaction):
+        embed = crea_embed_info()
+        await interaction.response.send_message(embed=embed, ephemeral=False)
+    
+    @client.tree.command(name="server", description="Info del server")
+    async def server(interaction: Interaction):
+        embed = crea_embed_info()
+        await interaction.response.send_message(embed=embed, ephemeral=False)
+
+    
