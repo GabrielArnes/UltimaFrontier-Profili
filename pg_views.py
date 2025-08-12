@@ -112,14 +112,14 @@ class FieldModal(discord.ui.Modal):
         self.view_ref = view_ref
 
         current_value = self.view_ref.data.get(field_name) or ""
-        multiline_fields = {"descrizione_fisica", "link_scheda", "immagine_url", "abilità_eroiche"}
+        multiline_fields = {"descrizione_fisica", "link_scheda", "immagine_url", "abilità_eroiche", "classi"}
 
         self.input = discord.ui.TextInput(
             label=f"Inserisci {field_name.replace('_', ' ').title()}",
             default=current_value,
             required=False,
             style=discord.TextStyle.paragraph if field_name in multiline_fields else discord.TextStyle.short,
-            max_length=500,
+            max_length=2000,
         )
         self.add_item(self.input)
 
