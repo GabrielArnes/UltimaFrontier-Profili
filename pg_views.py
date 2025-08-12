@@ -5,6 +5,8 @@ import json
 import os
 
 LOG_CHANNEL_ID = 1380217123825123338  # metti qui l’ID canale dedicato
+DATA_FILE = "pg_profiles.json"
+DEFAULT_COLOR = 0x3498db  
 
 class PGCreationView(discord.ui.View):
     def __init__(self, author: discord.User):
@@ -21,12 +23,29 @@ class PGCreationView(discord.ui.View):
             "descrizione_fisica": None,
             "link_scheda": None,
             "immagine_url": None,
-            "message_id": None  # per tenere traccia del messaggio nel canale dedicato
+            "colore": None,
+            "message_id": None,  # per tenere traccia del messaggio nel canale dedicato
         }
 
     def get_embed(self) -> discord.Embed:
         nome_pg = self.data.get("pg_nome") or "Profilo senza nome"
-        embed = discord.Embed(title=nome_pg, color=discord.Color.blue())
+
+        # gestisco colore: se hex valido usa quello, altrimenti default azzurro
+        colore_raw = self.data.get("colore")
+        color_int = DEFAULT_COLOR
+        if colore_raw:
+            try:
+                # Può essere esadecimale con # oppure no
+                colore_str = str(colore_raw).strip()
+                if colore_str.startswith("#"):
+                    colore_str = colore_str[1:]
+                color_int = int(colore_str, 16)
+                if not (0 <= color_int <= 0xFFFFFF):
+                    color_int = DEFAULT_COLOR
+            except Exception:
+                color_int = DEFAULT_COLOR
+
+        embed = discord.Embed(title=nome_pg, color=color_int)
         embed.description = f"Creato da {self.author.mention}"
 
         inline_fields = [
@@ -57,6 +76,7 @@ class PGCreationView(discord.ui.View):
             self.add_item(ProfileFieldButton(key, self))
         self.add_item(SaveProfileButton(self))
 
+
 class ProfileFieldButton(discord.ui.Button):
     def __init__(self, field_name: str, view_ref: PGCreationView):
         label_map = {
@@ -70,6 +90,7 @@ class ProfileFieldButton(discord.ui.Button):
             "descrizione_fisica": "Descrizione Fisica",
             "link_scheda": "Link Scheda",
             "immagine_url": "URL Immagine",
+            "colore": "Colore (hex)",  # nuovo campo
         }
         super().__init__(label=label_map.get(field_name, field_name), style=discord.ButtonStyle.secondary)
         self.field_name = field_name
@@ -82,7 +103,8 @@ class ProfileFieldButton(discord.ui.Button):
 
         modal = FieldModal(self.field_name, self.view_ref)
         await interaction.response.send_modal(modal)
-    
+
+
 class FieldModal(discord.ui.Modal):
     def __init__(self, field_name: str, view_ref: PGCreationView):
         super().__init__(title=f"Imposta {field_name.replace('_', ' ').title()}")
@@ -97,13 +119,14 @@ class FieldModal(discord.ui.Modal):
             default=current_value,
             required=False,
             style=discord.TextStyle.paragraph if field_name in multiline_fields else discord.TextStyle.short,
-            max_length=500
+            max_length=500,
         )
         self.add_item(self.input)
 
     async def on_submit(self, interaction: discord.Interaction):
         self.view_ref.data[self.field_name] = self.input.value.strip()
         await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
+
 
 class SaveProfileButton(discord.ui.Button):
     def __init__(self, view_ref: PGCreationView):
@@ -120,7 +143,7 @@ class SaveProfileButton(discord.ui.Button):
             await interaction.response.send_message("⚠️ Inserisci almeno il nome del personaggio prima di salvare!", ephemeral=True)
             return
 
-        filepath = "pg_profiles.json"
+        filepath = DATA_FILE
         all_profiles = {}
         if os.path.exists(filepath):
             with open(filepath, "r", encoding="utf-8") as f:
@@ -149,12 +172,13 @@ class SaveProfileButton(discord.ui.Button):
         embed = self.view_ref.get_embed()
         if channel:
             msg = await channel.send(embed=embed)
-            all_profiles[user_id_str][pg_nome]['message_id'] = msg.id
+            all_profiles[user_id_str][pg_nome]["message_id"] = msg.id
 
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(all_profiles, f, ensure_ascii=False, indent=4)
 
         await interaction.response.edit_message(content=f"✅ Profilo **{pg_nome}** salvato con successo!", embed=None, view=None)
+
 
 class ShowProfileView(View):
     def __init__(self, user: discord.User, profiles: dict):
@@ -168,6 +192,7 @@ class ShowProfileView(View):
         ]
 
         self.add_item(ProfileSelect(user, profiles, options))
+
 
 class ProfileSelect(Select):
     def __init__(self, user: discord.User, profiles: dict, options: list):
@@ -188,13 +213,24 @@ class ProfileSelect(Select):
         await interaction.response.send_message(
             embed=embed,
             view=PublishProfileView(self.user, profile_name, embed),
-            ephemeral=True
+            ephemeral=True,
         )
 
     def create_embed(self, profile_name: str, data: dict) -> discord.Embed:
-        embed = discord.Embed(title=profile_name, color=discord.Color.blue())
+        colore_raw = data.get("colore")
+        color_int = DEFAULT_COLOR
+        if colore_raw:
+            try:
+                colore_str = str(colore_raw).strip()
+                if colore_str.startswith("#"):
+                    colore_str = colore_str[1:]
+                color_int = int(colore_str, 16)
+                if not (0 <= color_int <= 0xFFFFFF):
+                    color_int = DEFAULT_COLOR
+            except Exception:
+                color_int = DEFAULT_COLOR
 
-        embed.set_image(url=data.get("immagine_url", ""))
+        embed = discord.Embed(title=profile_name, color=color_int)
 
         embed.add_field(name="Livello", value=data.get("livello", "-"), inline=True)
         embed.add_field(name="Identità", value=data.get("identità", "-"), inline=True)
@@ -207,7 +243,12 @@ class ProfileSelect(Select):
         embed.add_field(name="Descrizione fisica", value=data.get("descrizione_fisica", "-"), inline=False)
         embed.add_field(name="Link scheda", value=data.get("link_scheda", "-"), inline=False)
 
+        immagine_url = data.get("immagine_url")
+        if immagine_url:
+            embed.set_image(url=immagine_url)
+
         return embed
+
 
 class PublishProfileView(View):
     def __init__(self, user: discord.User, profile_name: str, embed: discord.Embed):
@@ -225,9 +266,10 @@ class PublishProfileView(View):
         sent_msg = await interaction.channel.send(
             f"{self.user.mention} ha pubblicato il profilo **{self.profile_name}**:",
             embed=self.embed,
-            view=DeleteMessageView(self.user)
+            view=DeleteMessageView(self.user),
         )
         await interaction.response.send_message("Profilo pubblicato nel canale.", ephemeral=True)
+
 
 class DeleteMessageView(View):
     def __init__(self, author: discord.User):
@@ -248,3 +290,4 @@ class DeleteMessageView(View):
             await interaction.response.send_message("Non ho i permessi per cancellare il messaggio.", ephemeral=True)
         else:
             self.stop()
+

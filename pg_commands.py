@@ -7,10 +7,12 @@ from discord import Interaction, Embed
 
 from utils import load_profiles, save_profiles
 from pg_views import PGCreationView, ShowProfileView
+DATA_FILE = "pg_profiles.json"
+DEFAULT_COLOR = 0x3498db  
 
 class PGCommands(app_commands.Group):
     def __init__(self):
-        super().__init__(name="test", description="Gestisci i tuoi profili PG")
+        super().__init__(name="pg", description="Gestisci i tuoi profili PG")
 
     @app_commands.command(name="crea", description="Crea un nuovo profilo PG")
     async def crea(self, interaction: discord.Interaction):
@@ -19,13 +21,12 @@ class PGCommands(app_commands.Group):
         await interaction.response.send_message(
             embed=view.get_embed(),
             view=view,
-            ephemeral=True
+            ephemeral=True,
         )
-
 
     @app_commands.command(name="modifica", description="Modifica un profilo PG esistente")
     async def modifica(self, interaction: discord.Interaction):
-        filepath = "pg_profiles.json"
+        filepath = DATA_FILE
         if not os.path.exists(filepath):
             await interaction.response.send_message("Non ci sono profili salvati.", ephemeral=True)
             return
@@ -73,7 +74,7 @@ class PGCommands(app_commands.Group):
                 nome = profilo.get("pg_nome", nome_pg)
                 immagine = profilo.get("immagine_url")
 
-                embed = discord.Embed(title=nome)
+                embed = discord.Embed(title=nome, color=DEFAULT_COLOR)
                 if immagine:
                     embed.set_image(url=immagine)
                 embeds.append(embed)
@@ -87,16 +88,15 @@ class PGCommands(app_commands.Group):
         await interaction.response.send_message(
             content="Ecco tutti i profili salvati:",
             embeds=embeds[:10],
-            ephemeral=True
+            ephemeral=True,
         )
 
         for i in range(10, len(embeds), 10):
             await interaction.followup.send(
-                embeds=embeds[i:i+10],
-                ephemeral=True
+                embeds=embeds[i : i + 10],
+                ephemeral=True,
             )
 
-   # /pg mostra
     @app_commands.command(name="mostra", description="Mostra uno dei tuoi profili PG")
     async def mostra(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
@@ -109,12 +109,11 @@ class PGCommands(app_commands.Group):
         await interaction.response.send_message(
             "Scegli un profilo da mostrare:",
             view=ShowProfileView(interaction.user, profiles),
-            ephemeral=True
+            ephemeral=True,
         )
 
-    # /pg cancella
     @app_commands.command(name="cancella", description="Cancella uno dei tuoi profili")
-    async def cancella(self, interaction: Interaction):
+    async def cancella(self, interaction: discord.Interaction):
         profiles = load_profiles()
         user_id = str(interaction.user.id)
         user_profiles = profiles.get(user_id, {})
@@ -133,10 +132,10 @@ class PGCommands(app_commands.Group):
             options=[
                 discord.SelectOption(label=nome_pg, description="Seleziona per cancellare")
                 for nome_pg in user_profiles.keys()
-            ]
+            ],
         )
 
-        async def select_callback(select_interaction: Interaction):
+        async def select_callback(select_interaction: discord.Interaction):
             if select_interaction.user.id != interaction.user.id:
                 await select_interaction.response.send_message("Non puoi interagire con questo menu.", ephemeral=True)
                 return
@@ -144,7 +143,7 @@ class PGCommands(app_commands.Group):
             selected_name = select.values[0]
             selected_profile = user_profiles[selected_name]
 
-            embed = Embed(title=selected_profile.get("pg_nome", selected_name))
+            embed = discord.Embed(title=selected_profile.get("pg_nome", selected_name), color=DEFAULT_COLOR)
             if selected_profile.get("immagine_url"):
                 embed.set_image(url=selected_profile["immagine_url"])
 

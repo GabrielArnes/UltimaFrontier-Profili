@@ -64,6 +64,48 @@ async def bersagliox_logic(interaction: Interaction, numero: int, da_escludere: 
 # Funzione per registrare i comandi nel bot
 def setup_commands(client):
 
+# FARE ZENIT
+    @client.tree.command(name="fare_zenit", description="Tira 2d8 e calcola lo Zenit guadagnato in base al livello.")
+    @app_commands.describe(livello="Il livello del personaggio")
+    async def fare_zenit(interaction: Interaction, livello: int):
+        import random
+        if livello < 1:
+            await interaction.response.send_message("❌ Il livello deve essere almeno 1.", ephemeral=True)
+            return
+
+        # Tiro dei dadi
+        dado1 = random.randint(1, 8)
+        dado2 = random.randint(1, 8)
+        somma = dado1 + dado2
+
+        # Calcolo base
+        base_zenit = somma * 5 * livello
+        risultato = base_zenit
+        tipo_esito = "Normale"
+
+        # Fallimento critico → doppio 1
+        if dado1 == 1 and dado2 == 1:
+            risultato = 0
+            tipo_esito = "💀 Fallimento Critico"
+
+        # Successo critico → doppio 6, 7 o 8
+        elif (dado1 == dado2) and (dado1 in [6, 7, 8]):
+            risultato *= 2
+            tipo_esito = "🌟 Successo Critico"
+
+        # Embed di risposta
+        embed = Embed(
+            title="🎲 Risultato Fare Zenit",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="Tiri", value=f"{dado1} e {dado2}", inline=True)
+        embed.add_field(name="Somma", value=str(somma), inline=True)
+        embed.add_field(name="Esito", value=tipo_esito, inline=False)
+        embed.add_field(name="Zenit Guadagnati", value=f"💰 {risultato}", inline=False)
+        embed.set_footer(text=f"Livello personaggio: {livello}")
+
+        await interaction.response.send_message(embed=embed)
+
 # Bersaglio e ALIAS
 
     @client.tree.command(name="bersaglio", description="Ping casuale di persone nella tua voice chat (escludendo chi ha zz)")
