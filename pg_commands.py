@@ -13,7 +13,7 @@ LOG_CHANNEL_ID = 1380097036246061086  # metti qui l’ID canale dedicato
 
 class PGCommands(app_commands.Group):
     def __init__(self):
-        super().__init__(name="test", description="Gestisci i tuoi profili PG")
+        super().__init__(name="pg", description="Gestisci i tuoi profili PG")
 
     @app_commands.command(name="crea", description="Crea un nuovo profilo PG")
     async def crea(self, interaction: discord.Interaction):
