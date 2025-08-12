@@ -9,10 +9,11 @@ from utils import load_profiles, save_profiles
 from pg_views import PGCreationView, ShowProfileView
 DATA_FILE = "pg_profiles.json"
 DEFAULT_COLOR = 0x3498db  
+LOG_CHANNEL_ID = 1380097036246061086  # metti qui l’ID canale dedicato
 
 class PGCommands(app_commands.Group):
     def __init__(self):
-        super().__init__(name="pg", description="Gestisci i tuoi profili PG")
+        super().__init__(name="test", description="Gestisci i tuoi profili PG")
 
     @app_commands.command(name="crea", description="Crea un nuovo profilo PG")
     async def crea(self, interaction: discord.Interaction):
@@ -112,7 +113,7 @@ class PGCommands(app_commands.Group):
             ephemeral=True,
         )
 
-    @app_commands.command(name="cancella", description="Cancella uno dei tuoi profili")
+    @app_commands.command(name="elimina", description="Cancella uno dei tuoi profili")
     async def cancella(self, interaction: discord.Interaction):
         profiles = load_profiles()
         user_id = str(interaction.user.id)
@@ -122,7 +123,6 @@ class PGCommands(app_commands.Group):
             await interaction.response.send_message("❌ Non hai profili da cancellare.", ephemeral=True)
             return
 
-        # View e Select per scegliere quale profilo eliminare
         view = View(timeout=60)
 
         select = Select(
@@ -147,13 +147,23 @@ class PGCommands(app_commands.Group):
             if selected_profile.get("immagine_url"):
                 embed.set_image(url=selected_profile["immagine_url"])
 
-            # Bottoni di conferma e annulla
             class ConfermaButton(Button):
                 def __init__(self):
                     super().__init__(label="Conferma Cancellazione", style=discord.ButtonStyle.danger)
 
                 async def callback(self, btn_interaction: Interaction):
+                    # Elimina il messaggio nel canale log se esiste
+                    message_id = selected_profile.get("message_id")
+                    if message_id:
+                        channel = btn_interaction.client.get_channel(LOG_CHANNEL_ID)
+                        if channel:
+                            try:
+                                msg = await channel.fetch_message(message_id)
+                                await msg.delete()
+                            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                                pass  # Ignora errori cancellando messaggio
 
+                    # Elimina il profilo e salva
                     del user_profiles[selected_name]
                     profiles[user_id] = user_profiles
                     save_profiles(profiles)
@@ -197,6 +207,7 @@ class PGCommands(app_commands.Group):
             view=view,
             ephemeral=True
         )
+
 
 
 def setup_commands(client: discord.Client):

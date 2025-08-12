@@ -4,7 +4,7 @@ from discord.ui import Modal, TextInput, View, Button, Select
 import json
 import os
 
-LOG_CHANNEL_ID = 1380217123825123338  # metti qui l’ID canale dedicato
+LOG_CHANNEL_ID = 1380097036246061086  # metti qui l’ID canale dedicato
 DATA_FILE = "pg_profiles.json"
 DEFAULT_COLOR = 0x3498db  
 
