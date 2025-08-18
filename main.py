@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from discord import app_commands, app_commands
 import misc_commands
 import pg_commands
+from utils import extra_bersagli
 
 
 intents = discord.Intents.default()
@@ -24,6 +25,14 @@ client = MyClient()
 
 misc_commands.setup_commands(client)
 pg_commands.setup_commands(client)
+
+@client.event
+async def on_voice_state_update(member, before, after):
+    # Se l'utente lascia del tutto la vocale, resetta i bersagli extra
+    if before.channel is not None and after.channel is None:
+        user_id = member.id
+        if user_id in extra_bersagli:
+            del extra_bersagli[user_id]
 
 
 # PROFILI V0.1

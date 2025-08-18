@@ -12,3 +12,5 @@ def load_profiles():
 def save_profiles(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+extra_bersagli = {}  # { user_id: set([...]) }

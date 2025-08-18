@@ -2,6 +2,12 @@ import random
 import itertools
 from discord import app_commands, Interaction, Embed
 import discord
+from utils import extra_bersagli
+
+
+ID_APPROVATORE = 1379925458237264013  # Team Approvazione
+ID_NUOVO_ARRIVATO = 1377232973190926467  # Nuovo arrivato
+ID_CUSTODE = 1375834279694827541  # Custode
 
 # Funzione helper: logica del comando bersaglio
 async def bersaglio_logic(interaction: Interaction, numero: int):
@@ -21,16 +27,27 @@ async def bersaglio_logic(interaction: Interaction, numero: int):
         if m != member and not m.display_name.lower().startswith("zz") and not m.bot
     ]
 
-    if not valid_members:
-        await interaction.response.send_message("Non c'è nessuno da pingare (o tutti hanno 'zz' nel nome).", ephemeral=True)
+    # Aggiungi anche bersagli extra salvati dall'utente
+    extra = list(extra_bersagli.get(interaction.user.id, set()))
+    valid_targets = valid_members + extra
+
+    if not valid_targets:
+        await interaction.response.send_message("Non c'è nessuno da pingare (o la tua lista è vuota).", ephemeral=True)
         return
 
-    numero = max(1, min(numero, len(valid_members)))
+    numero = max(1, min(numero, len(valid_targets)))
 
-    chosen = random.sample(valid_members, numero)
-    mentions = "🎯"+'\n🎯'.join(m.mention for m in chosen)
+    chosen = random.sample(valid_targets, numero)
 
-    await interaction.response.send_message(f"{mentions}", ephemeral=False)
+    mentions = []
+    for c in chosen:
+        if isinstance(c, discord.Member):
+            mentions.append(c.mention)
+        else:
+            mentions.append(str(c))
+
+    result = "🎯 " + "\n🎯 ".join(mentions)
+    await interaction.response.send_message(f"{result}", ephemeral=False)
 
 async def bersagliox_logic(interaction: Interaction, numero: int, da_escludere: discord.Member):
     if not interaction.guild:
@@ -49,16 +66,27 @@ async def bersagliox_logic(interaction: Interaction, numero: int, da_escludere: 
         if m != member and m != da_escludere and not m.display_name.lower().startswith("zz") and not m.bot
     ]
 
-    if not valid_members:
-        await interaction.response.send_message("Non c'è nessuno da pingare (o tutti hanno 'zz' nel nome).", ephemeral=True)
+    # Aggiungi anche bersagli extra salvati dall'utente
+    extra = list(extra_bersagli.get(interaction.user.id, set()))
+    valid_targets = valid_members + extra
+
+    if not valid_targets:
+        await interaction.response.send_message("Non c'è nessuno da pingare (o la tua lista è vuota).", ephemeral=True)
         return
 
-    numero = max(1, min(numero, len(valid_members)))
+    numero = max(1, min(numero, len(valid_targets)))
 
-    chosen = random.sample(valid_members, numero)
-    mentions = "🎯"+'\n🎯'.join(m.mention for m in chosen)
+    chosen = random.sample(valid_targets, numero)
 
-    await interaction.response.send_message(f"{mentions}", ephemeral=False)
+    mentions = []
+    for c in chosen:
+        if isinstance(c, discord.Member):
+            mentions.append(c.mention)
+        else:
+            mentions.append(str(c))
+
+    result = "🎯 " + "\n🎯 ".join(mentions)
+    await interaction.response.send_message(f"{result}", ephemeral=False)
 
 
 # Funzione per registrare i comandi nel bot
@@ -142,6 +170,45 @@ def setup_commands(client):
     @app_commands.describe(numero="(Opzionale) Quante persone vuoi pingare?")
     async def rtx(interaction: Interaction, da_escludere: discord.Member, numero: int = 1):
         await bersagliox_logic(interaction, numero, da_escludere)
+
+# Nuovo comando: aggiungere bersagli extra
+    @client.tree.command(name="bersaglio_aggiungi", description="Aggiungi un nome o utente alla tua lista di bersagli extra")
+    async def bersaglio_aggiungi(interaction: Interaction, bersaglio: str):
+        user_id = interaction.user.id
+        if user_id not in extra_bersagli:
+            extra_bersagli[user_id] = set()
+        extra_bersagli[user_id].add(bersaglio)
+
+        await interaction.response.send_message(f"Aggiunto **{bersaglio}** alla tua lista di bersagli extra.", ephemeral=True)
+
+# Nuovo comando: rimuovere bersagli extra
+    @client.tree.command(name="bersaglio_rimuovi", description="Rimuovi un nome o utente dalla tua lista di bersagli extra")
+    async def bersaglio_rimuovi(interaction: Interaction, bersaglio: str):
+        user_id = interaction.user.id
+        if user_id in extra_bersagli and bersaglio in extra_bersagli[user_id]:
+            extra_bersagli[user_id].remove(bersaglio)
+            # Se la lista diventa vuota, rimuoviamo l'entry per pulizia
+            if not extra_bersagli[user_id]:
+                del extra_bersagli[user_id]
+            await interaction.response.send_message(f"Rimosso **{bersaglio}** dalla tua lista di bersagli extra.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"⚠️ **{bersaglio}** non era presente nella tua lista di bersagli extra.", ephemeral=True)
+
+# MOSTRA LISTA BERSAGLI EXTRA
+
+    @client.tree.command(name="bersaglio_status", description="Mostra la tua lista di bersagli extra.")
+    async def bersaglio_status(interaction: Interaction):
+        user_id = interaction.user.id
+        bersagli = extra_bersagli.get(user_id, set())
+
+        if not bersagli:
+            await interaction.response.send_message("ℹ️ La tua lista di bersagli extra è vuota.", ephemeral=True)
+        else:
+            lista = "\n".join(f"• {b}" for b in bersagli)
+            await interaction.response.send_message(
+                f"I tuoi bersagli extra attuali:\n{lista}",
+                ephemeral=True
+            )
 
 # ALCHIMIA
     @client.tree.command(name="alchimia", description="Tira da 2 a 4 d20 e mostra tutti gli effetti unici delle coppie.")
@@ -346,6 +413,127 @@ def setup_commands(client):
     @client.tree.command(name="server", description="Info del server")
     async def server(interaction: Interaction):
         embed = crea_embed_info()
+        await interaction.response.send_message(embed=embed, ephemeral=False)
+
+# APPROVA PERSONAGGIO
+
+    @client.tree.command(
+    name="approva",
+    description="Approva un utente: rimuove 'Nuovo arrivato' e assegna 'Custode'."
+    )
+    @app_commands.describe(membro="L'utente che vuoi approvare")
+    async def approva(interaction: discord.Interaction, membro: discord.Member):
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message("❌ Questo comando funziona solo nei server.", ephemeral=True)
+            return
+
+        # 🔹 Ruolo autorizzato per usare il comando
+        approvatore_role = guild.get_role(ID_APPROVATORE)
+        member_approvatore = guild.get_member(interaction.user.id)
+
+        if not approvatore_role:
+            await interaction.response.send_message(
+                "⚠️ Ruolo 'Team Approvazione' non trovato sul server!", ephemeral=True
+            )
+            return
+
+        if approvatore_role not in member_approvatore.roles:
+            await interaction.response.send_message(
+                "❌ Non hai il permesso di usare questo comando.", ephemeral=True
+            )
+            return
+
+        # 🔹 Ruoli fissi da rimuovere/aggiungere
+        ruolo_da_rimuovere = guild.get_role(ID_NUOVO_ARRIVATO)
+        ruolo_da_aggiungere = guild.get_role(ID_CUSTODE)
+
+        if not ruolo_da_rimuovere or not ruolo_da_aggiungere:
+            await interaction.response.send_message(
+                "⚠️ Ruoli 'Nuovo arrivato' o 'Custode' non trovati sul server!", ephemeral=True
+            )
+            return
+
+        # 🔹 Rimuove ruolo se presente
+        if ruolo_da_rimuovere in membro.roles:
+            await membro.remove_roles(ruolo_da_rimuovere)
+
+        # 🔹 Aggiunge ruolo nuovo
+        await membro.add_roles(ruolo_da_aggiungere)
+
+        # 🔹 Embed conferma
+        embed = Embed(
+            title="✅ Utente Approvato",
+            description=f"{membro.mention} è stato approvato!",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Rimosso", value=ruolo_da_rimuovere.mention, inline=True)
+        embed.add_field(name="Assegnato", value=ruolo_da_aggiungere.mention, inline=True)
+        embed.set_footer(text=f"Azione eseguita da {interaction.user.display_name}")
+
+        await interaction.response.send_message(embed=embed)
+    
+# RITUALI
+    def crea_embed_rituali():
+        embed = Embed(
+            title="📜 Tabella Rituali",
+            color=0x9932CC
+        )
+
+        # Tabella Potenza: raggruppiamo due valori in uno stesso field
+        embed.add_field(
+            name="⚡ Potenza",
+            value="",
+            inline=False
+        )
+
+        embed.add_field(
+            name="",
+            value=(
+                "**Minore**: 20 PM | LD 7\nCreare lampi, bloccare passaggi, rompere vetri.\n\n"
+                "**Media**: 30 PM | LD 10\nIllusioni, curare malattie, trovare qualcosa, percepire emozioni."
+            ),
+            inline=True
+        )
+        embed.add_field(
+            name="",
+            value=(
+                "**Maggiore**: 40 PM | LD 13\nLeggere pensieri, spezzare maledizioni, alterare clima.\n\n"
+                "**Estrema**: 50 PM | LD 16\nIndebolire divinità, prevenire catastrofi, modificare luoghi/creature."
+            ),
+            inline=True
+        )
+
+        # Tabella Area: stesso trucco
+        embed.add_field(
+            name="💠 Area",
+            value="",
+            inline=False
+        )
+
+        embed.add_field(
+            name="",
+            value=(
+                "**Individuale** ×1: Una creatura, una porta, un albero, un’arma.\n\n"
+                "**Piccola** ×2: Gruppo di umani, creatura grande, stanza, capanna."
+            ),
+            inline=True
+        )
+        embed.add_field(
+            name="",
+            value=(
+                "**Grande** ×3: Folla, piccola foresta, galeone, sala di castello, gigante.\n\n"
+                "**Enorme** ×4: Fortezza, lago, montagna, villaggio, quartiere."
+            ),
+            inline=True
+        )
+
+        return embed
+
+
+    @client.tree.command(name="rituali", description="Mostra la tabella dei rituali")
+    async def rituali(interaction: Interaction):
+        embed = crea_embed_rituali()
         await interaction.response.send_message(embed=embed, ephemeral=False)
 
     
