@@ -1,5 +1,6 @@
 import discord
 import os
+import sys
 from dotenv import load_dotenv
 from discord import app_commands, app_commands
 import misc_commands
@@ -19,6 +20,10 @@ class MyClient(discord.Client):
 
     async def setup_hook(self):
         await self.tree.sync()
+    
+    async def on_disconnect(self):
+        print("Errore, termino il processo...")
+        sys.exit(1)
 
 client = MyClient()
 
